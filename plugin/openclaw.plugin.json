@@ -1,0 +1,29 @@
+{
+  "id": "safe-agent-cli-mcp",
+  "name": "Safe Agent CLI MCP",
+  "description": "Metadata for the Safe Agent CLI MCP OpenClaw bundle. MCP server registration is provided by the Claude-compatible bundle files at the repository root.",
+  "version": "0.1.0",
+  "kind": "tool",
+  "contracts": {
+    "tools": [
+      "safe-claude__claude_status",
+      "safe-claude__claude_config",
+      "safe-claude__claude_validate",
+      "safe-claude__claude_review",
+      "safe-claude__claude_task",
+      "safe-codex__codex_status",
+      "safe-codex__codex_config",
+      "safe-codex__codex_validate",
+      "safe-codex__codex_review",
+      "safe-codex__codex_task"
+    ]
+  },
+  "activation": {
+    "onCapabilities": ["tool"]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

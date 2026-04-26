@@ -1,0 +1,35 @@
+{
+  "name": "safe-agent-cli-mcp",
+  "version": "0.1.0",
+  "description": "Dry-run-first MCP tools for local Claude and Codex CLIs with cwd allowlists and no shell spawning.",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "workspaces": [
+    "packages/shared",
+    "packages/claude-cli-mcp",
+    "packages/codex-cli-mcp"
+  ],
+  "scripts": {
+    "build": "npm run build -w @safe-agent-cli-mcp/shared && npm run build -w @safe-agent-cli-mcp/claude-cli-mcp && npm run build -w @safe-agent-cli-mcp/codex-cli-mcp",
+    "typecheck": "npm run build -w @safe-agent-cli-mcp/shared && npm run typecheck -w @safe-agent-cli-mcp/claude-cli-mcp && npm run typecheck -w @safe-agent-cli-mcp/codex-cli-mcp",
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "clean": "rm -rf packages/*/dist",
+    "validate:plugin": "node scripts/validate-openclaw-plugin.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^24.9.1",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "mcp",
+    "claude",
+    "codex",
+    "cli",
+    "safety",
+    "dry-run"
+  ]
+}

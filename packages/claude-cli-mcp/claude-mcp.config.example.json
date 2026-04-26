@@ -1,0 +1,19 @@
+{
+  "allowedRoots": ["/path/to/your/project"],
+  "defaultModel": "sonnet",
+  "allowedModels": ["sonnet", "opus", "haiku"],
+  "reviewPermissionMode": "default",
+  "taskPermissionMode": "default",
+  "timeouts": {
+    "reviewDefaultSeconds": 300,
+    "taskDefaultSeconds": 900,
+    "maxSeconds": 1200
+  },
+  "output": {
+    "defaultMaxChars": 262144,
+    "maxChars": 524288
+  },
+  "redactTokens": true,
+  "redactEmails": false,
+  "envPassthroughAllowlist": []
+}

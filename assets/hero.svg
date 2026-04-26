@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420" role="img" aria-label="Safe Agent CLI MCP">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#07111f"/><stop offset="1" stop-color="#111827"/></linearGradient>
+    <linearGradient id="line" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#72e0ff"/><stop offset="1" stop-color="#a78bfa"/></linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="1200" height="420" rx="28" fill="url(#bg)"/>
+  <circle cx="1020" cy="70" r="180" fill="#2563eb" opacity="0.14"/>
+  <circle cx="170" cy="360" r="180" fill="#7c3aed" opacity="0.12"/>
+  <text x="70" y="104" fill="#e5f3ff" font-family="Inter, ui-sans-serif, system-ui" font-size="52" font-weight="800">Safe Agent CLI MCP</text>
+  <text x="74" y="148" fill="#9fb3c8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="22">Local Claude and Codex CLI as MCP tools, dry-run first, allowlisted, no shell.</text>
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="24" font-weight="700">
+    <rect x="95" y="230" width="210" height="76" rx="18" fill="#0b1220" stroke="#38bdf8"/>
+    <text x="145" y="277" fill="#dbeafe">Claude CLI</text>
+    <rect x="95" y="320" width="210" height="76" rx="18" fill="#0b1220" stroke="#60a5fa"/>
+    <text x="150" y="367" fill="#dbeafe">Codex CLI</text>
+    <path d="M318 268 C438 268 438 312 558 312" stroke="url(#line)" stroke-width="5" fill="none" filter="url(#glow)"/>
+    <path d="M318 358 C438 358 438 312 558 312" stroke="url(#line)" stroke-width="5" fill="none" filter="url(#glow)"/>
+    <rect x="560" y="266" width="214" height="92" rx="24" fill="#101827" stroke="#a78bfa" stroke-width="2"/>
+    <text x="610" y="320" fill="#f5f3ff">MCP Server</text>
+    <path d="M778 312 C895 312 890 312 1005 312" stroke="url(#line)" stroke-width="5" fill="none" marker-end="url(#arrow)" filter="url(#glow)"/>
+    <rect x="1008" y="268" width="128" height="88" rx="22" fill="#0b1220" stroke="#34d399"/>
+    <text x="1040" y="304" fill="#dcfce7" font-size="20">MCP</text><text x="1030" y="334" fill="#dcfce7" font-size="20">Client</text>
+  </g>
+  <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#a78bfa"/></marker></defs>
+</svg>

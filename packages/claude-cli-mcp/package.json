@@ -1,0 +1,31 @@
+{
+  "name": "@safe-agent-cli-mcp/claude-cli-mcp",
+  "version": "0.1.0",
+  "description": "Dry-run-first MCP wrapper for local Claude CLI.",
+  "type": "module",
+  "private": false,
+  "bin": {
+    "claude-cli-mcp-server": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "claude-mcp.config.example.json"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.20.2",
+    "@safe-agent-cli-mcp/shared": "0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.9.1",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

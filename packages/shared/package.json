@@ -1,0 +1,13 @@
+{
+  "name": "@safe-agent-cli-mcp/shared",
+  "version": "0.1.0",
+  "description": "Shared safety helpers for safe-agent-cli-mcp servers.",
+  "type": "module",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

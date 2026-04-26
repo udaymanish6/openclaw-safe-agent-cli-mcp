@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="360" viewBox="0 0 1000 360" role="img" aria-label="Dry-run terminal demo">
+  <rect width="1000" height="360" rx="22" fill="#050816"/>
+  <rect x="0" y="0" width="1000" height="44" rx="22" fill="#101827"/>
+  <circle cx="26" cy="22" r="7" fill="#fb7185"/><circle cx="50" cy="22" r="7" fill="#fbbf24"/><circle cx="74" cy="22" r="7" fill="#34d399"/>
+  <text x="30" y="88" fill="#6ee7b7" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="19">$ mcporter call safe-agent codex_validate</text>
+  <text x="30" y="126" fill="#93c5fd" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18">{ "cwd": "/path/to/your/project", "prompt": "review auth flow" }</text>
+  <text x="30" y="180" fill="#e5e7eb" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18">dryRun: true</text>
+  <text x="30" y="216" fill="#e5e7eb" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18">command: codex</text>
+  <text x="30" y="252" fill="#e5e7eb" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18">args: --sandbox read-only --ask-for-approval never --cd /path/to/your/project exec ...</text>
+  <text x="30" y="306" fill="#fbbf24" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18">No shell. No execution until dryRun=false and write gates pass.</text>
+</svg>

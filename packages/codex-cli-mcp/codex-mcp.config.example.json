@@ -1,0 +1,20 @@
+{
+  "allowedRoots": ["/path/to/your/project"],
+  "defaultModel": "gpt-5.1",
+  "allowedModels": ["gpt-5.1", "gpt-5", "gpt-5-mini", "gpt-5.5", "gpt-5.5-codex", "o3", "o4-mini"],
+  "defaultReviewSandbox": "read-only",
+  "defaultTaskSandbox": "workspace-write",
+  "defaultApprovalPolicy": "never",
+  "allowDangerFullAccess": false,
+  "timeouts": {
+    "reviewDefaultSeconds": 300,
+    "taskDefaultSeconds": 900,
+    "maxSeconds": 1200
+  },
+  "output": {
+    "defaultMaxChars": 262144,
+    "maxChars": 524288
+  },
+  "redactTokens": true,
+  "redactEmails": false
+}

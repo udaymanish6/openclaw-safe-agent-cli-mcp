@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "safe-claude": {
+      "command": "node",
+      "args": ["/path/to/safe-agent-cli-mcp/packages/claude-cli-mcp/dist/index.js"]
+    },
+    "safe-codex": {
+      "command": "node",
+      "args": ["/path/to/safe-agent-cli-mcp/packages/codex-cli-mcp/dist/index.js"]
+    }
+  }
+}

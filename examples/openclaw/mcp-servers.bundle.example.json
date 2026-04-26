@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "safe-claude": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/packages/claude-cli-mcp/dist/index.js"],
+      "cwd": "${CLAUDE_PLUGIN_ROOT}"
+    },
+    "safe-codex": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/packages/codex-cli-mcp/dist/index.js"],
+      "cwd": "${CLAUDE_PLUGIN_ROOT}"
+    }
+  }
+}
