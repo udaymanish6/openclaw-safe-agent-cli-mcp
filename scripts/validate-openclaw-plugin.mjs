@@ -50,6 +50,12 @@ for (const [file, key] of [
 }
 
 const blockedDirs = new Set([".git", "node_modules", "dist"]);
+const blockedFiles = new Set([
+  "claude-mcp.config.json",
+  "claude-mcp.config.local.json",
+  "codex-mcp.config.json",
+  "codex-mcp.config.local.json"
+]);
 const textExtensions = new Set([".json", ".md", ".ts", ".js", ".mjs", ".yml", ".yaml"]);
 const privatePatterns = [
   { name: "personal absolute path", re: /\/Users\/miya\b/i },
@@ -66,7 +72,7 @@ async function walk(dir) {
       await walk(absolute);
       continue;
     }
-    if (!entry.isFile() || !textExtensions.has(path.extname(entry.name))) continue;
+    if (!entry.isFile() || blockedFiles.has(entry.name) || !textExtensions.has(path.extname(entry.name))) continue;
     const relative = path.relative(root, absolute);
     const info = await stat(absolute);
     if (info.size > 1024 * 1024) continue;

@@ -107,7 +107,7 @@ Set narrow project roots before real use:
 }
 ```
 
-Then point your MCP client at one or both built stdio servers:
+Then point your MCP client at one or both built stdio servers. The install path is the absolute path to this cloned repository on the machine that launches the MCP server:
 
 ```json
 {
@@ -257,7 +257,9 @@ See [`docs/comparison.md`](docs/comparison.md) for the longer version.
 
 ## ClawHub and GitHub publishing
 
-The repository is structured for GitHub and ClawHub presentation, including assets, examples, docs, package metadata, and OpenClaw plugin files. Confirm final owner names, registry names, URLs, and publishing permissions before adding npm or ClawHub badges. This README intentionally avoids fake published-status badges.
+GitHub repository: <https://github.com/udaymanish6/openclaw-safe-agent-cli-mcp>
+
+The repository is structured for GitHub and ClawHub presentation, including assets, examples, docs, package metadata, and OpenClaw plugin files. Confirm final registry names, URLs, and publishing permissions before adding npm or ClawHub badges. This README intentionally avoids fake published-status badges.
 
 ## FAQ
 

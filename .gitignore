@@ -6,4 +6,5 @@ coverage/
 .env.*
 !.env.example
 packages/*/*-mcp.config.json
+packages/*/*-mcp.config.local.json
 npm-debug.log*
