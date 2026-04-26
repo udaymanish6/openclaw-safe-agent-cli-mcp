@@ -125,7 +125,7 @@ test("Codex rejects unknown model", async () => {
       allowWrites: undefined,
       allowDangerFullAccess: undefined,
       configOverrides: undefined,
-      config: { ...CODEX_DEFAULTS, allowedRoots: [root], allowedModels: ["gpt-5.1"] },
+      config: { ...CODEX_DEFAULTS, allowedRoots: [root], allowedModels: ["gpt-5.5"] },
       codexBin: "codex"
     }),
     /not in allowedModels/

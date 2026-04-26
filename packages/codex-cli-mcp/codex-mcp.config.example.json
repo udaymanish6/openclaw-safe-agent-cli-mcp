@@ -1,7 +1,7 @@
 {
   "allowedRoots": ["/path/to/your/project"],
-  "defaultModel": "gpt-5.1",
-  "allowedModels": ["gpt-5.1", "gpt-5", "gpt-5-mini", "gpt-5.5", "gpt-5.5-codex", "o3", "o4-mini"],
+  "defaultModel": "gpt-5.5",
+  "allowedModels": ["gpt-5.5", "gpt-5.4", "gpt-5.4-mini", "gpt-5.3-codex", "gpt-5.3-codex-spark", "gpt-5.2", "codex-auto-review", "gpt-5.1", "gpt-5", "gpt-5-mini", "gpt-5.5-codex", "o3", "o4-mini"],
   "defaultReviewSandbox": "read-only",
   "defaultTaskSandbox": "workspace-write",
   "defaultApprovalPolicy": "never",
