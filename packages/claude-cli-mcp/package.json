@@ -1,6 +1,6 @@
 {
   "name": "@safe-agent-cli-mcp/claude-cli-mcp",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Dry-run-first MCP wrapper for local Claude CLI.",
   "type": "module",
   "private": false,
@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.20.2",
-    "@safe-agent-cli-mcp/shared": "0.1.0"
+    "@safe-agent-cli-mcp/shared": "0.1.2"
   },
   "devDependencies": {
     "@types/node": "^24.9.1",

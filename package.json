@@ -1,6 +1,6 @@
 {
   "name": "safe-agent-cli-mcp",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Dry-run-first MCP tools for local Claude and Codex CLIs with cwd allowlists and no shell spawning.",
   "type": "module",
   "private": true,

@@ -1,6 +1,6 @@
 {
   "name": "@safe-agent-cli-mcp/shared",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Shared safety helpers for safe-agent-cli-mcp servers.",
   "type": "module",
   "private": true,
