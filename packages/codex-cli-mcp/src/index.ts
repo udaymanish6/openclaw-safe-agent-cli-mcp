@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -7,7 +6,7 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema, type Tool } from "@modelcontextprotocol/sdk/types.js";
 import packageJson from "../package.json" with { type: "json" };
-import { booleanDefault, jsonResponse, normalizeMaxOutput, normalizedTimeout, numberProp, objectOrEmpty, optionalString, pathExists, redactSecrets, requiredPrompt, resolveAllowedCwd, runCommand, stringArray, type ContentResponse } from "@safe-agent-cli-mcp/shared";
+import { baseToolProperties, booleanDefault, commandStatus, commandVersion, commonConfigFromRaw, configOverridesProperty, discoverBinary, jsonResponse, loadJsonConfig, normalizeMaxOutput, normalizedTimeout, objectOrEmpty, optionalNonEmptyStringProp, optionalString, redactSecrets, requiredPrompt, resolveAllowedCwd, runCommand, stringArray, stringProp, type ContentResponse } from "@safe-agent-cli-mcp/shared";
 
 const SERVER_NAME = "codex-cli-mcp-server";
 const SERVER_VERSION = packageJson.version;
@@ -34,38 +33,20 @@ type ValidationOptions = { prompt?: string; cwd: unknown; model: unknown; sandbo
 let config: ServerConfig = SAFE_DEFAULTS;
 let resolvedCodexBin = "codex";
 
-async function discoverCodexBin(configured?: string): Promise<string> {
-  const candidates = [configured, process.env.CODEX_BIN, ...String(process.env.PATH ?? "").split(path.delimiter).map((dir) => path.join(dir, "codex"))].filter((item): item is string => Boolean(item));
-  for (const candidate of candidates) if (await pathExists(candidate)) return candidate;
-  return "codex";
-}
 async function loadConfig(): Promise<ServerConfig> {
-  const candidates = [path.join(PROJECT_ROOT, "codex-mcp.config.json"), path.join(PROJECT_ROOT, "config", "default.json")];
-  let raw: Record<string, unknown> = {};
-  for (const file of candidates) if (await pathExists(file)) { raw = JSON.parse(await readFile(file, "utf8")) as Record<string, unknown>; break; }
-  const timeouts = objectOrEmpty(raw.timeouts);
-  const output = objectOrEmpty(raw.output);
+  const raw = await loadJsonConfig(PROJECT_ROOT, ["codex-mcp.config.json", "config/default.json"]);
   const loaded: ServerConfig = {
-    allowedRoots: stringArray(raw.allowedRoots, SAFE_DEFAULTS.allowedRoots),
-    timeouts: { reviewDefaultSeconds: numberProp(timeouts, "reviewDefaultSeconds", SAFE_DEFAULTS.timeouts.reviewDefaultSeconds), taskDefaultSeconds: numberProp(timeouts, "taskDefaultSeconds", SAFE_DEFAULTS.timeouts.taskDefaultSeconds), maxSeconds: numberProp(timeouts, "maxSeconds", SAFE_DEFAULTS.timeouts.maxSeconds) },
-    output: { defaultMaxChars: numberProp(output, "defaultMaxChars", SAFE_DEFAULTS.output.defaultMaxChars), maxChars: numberProp(output, "maxChars", SAFE_DEFAULTS.output.maxChars) },
-    defaultModel: typeof raw.defaultModel === "string" ? raw.defaultModel : SAFE_DEFAULTS.defaultModel,
+    ...commonConfigFromRaw(raw, SAFE_DEFAULTS),
+    defaultModel: stringProp(raw, "defaultModel", SAFE_DEFAULTS.defaultModel),
     allowedModels: stringArray(raw.allowedModels, SAFE_DEFAULTS.allowedModels),
     allowedSandboxModes: stringArray(raw.allowedSandboxModes, SAFE_DEFAULTS.allowedSandboxModes),
-    defaultReviewSandbox: typeof raw.defaultReviewSandbox === "string" ? raw.defaultReviewSandbox : SAFE_DEFAULTS.defaultReviewSandbox,
-    defaultTaskSandbox: typeof raw.defaultTaskSandbox === "string" ? raw.defaultTaskSandbox : SAFE_DEFAULTS.defaultTaskSandbox,
+    defaultReviewSandbox: stringProp(raw, "defaultReviewSandbox", SAFE_DEFAULTS.defaultReviewSandbox),
+    defaultTaskSandbox: stringProp(raw, "defaultTaskSandbox", SAFE_DEFAULTS.defaultTaskSandbox),
     allowedApprovalPolicies: stringArray(raw.allowedApprovalPolicies, SAFE_DEFAULTS.allowedApprovalPolicies),
-    defaultApprovalPolicy: typeof raw.defaultApprovalPolicy === "string" ? raw.defaultApprovalPolicy : SAFE_DEFAULTS.defaultApprovalPolicy,
-    codexBin: typeof raw.codexBin === "string" && raw.codexBin.trim() ? raw.codexBin : undefined,
-    redactEmails: typeof raw.redactEmails === "boolean" ? raw.redactEmails : SAFE_DEFAULTS.redactEmails,
-    redactTokens: typeof raw.redactTokens === "boolean" ? raw.redactTokens : SAFE_DEFAULTS.redactTokens,
+    defaultApprovalPolicy: stringProp(raw, "defaultApprovalPolicy", SAFE_DEFAULTS.defaultApprovalPolicy),
+    codexBin: optionalNonEmptyStringProp(raw, "codexBin"),
     allowDangerFullAccess: typeof raw.allowDangerFullAccess === "boolean" ? raw.allowDangerFullAccess : SAFE_DEFAULTS.allowDangerFullAccess,
   };
-  loaded.timeouts.maxSeconds = Math.max(1, loaded.timeouts.maxSeconds);
-  loaded.timeouts.reviewDefaultSeconds = Math.min(loaded.timeouts.reviewDefaultSeconds, loaded.timeouts.maxSeconds);
-  loaded.timeouts.taskDefaultSeconds = Math.min(loaded.timeouts.taskDefaultSeconds, loaded.timeouts.maxSeconds);
-  loaded.output.maxChars = Math.max(1024, loaded.output.maxChars);
-  loaded.output.defaultMaxChars = Math.min(Math.max(1024, loaded.output.defaultMaxChars), loaded.output.maxChars);
   if (!loaded.allowedSandboxModes.includes(loaded.defaultReviewSandbox)) loaded.defaultReviewSandbox = "read-only";
   if (!loaded.allowedSandboxModes.includes(loaded.defaultTaskSandbox)) loaded.defaultTaskSandbox = "workspace-write";
   if (!loaded.allowedApprovalPolicies.includes(loaded.defaultApprovalPolicy)) loaded.defaultApprovalPolicy = "never";
@@ -118,7 +99,7 @@ export async function validateCodexInvocation(options: ValidationOptions) {
   const args = buildCodexArgs(subcommand, prompt, { model, sandbox, approvalPolicy, cwd, configOverrides, kind });
   return { command, args, cwd, timeoutSeconds, maxOutputChars, dryRun, allowWrites, model, sandbox, approvalPolicy, subcommand, configOverrides, allowlist: roots };
 }
-const commonProperties = { prompt: { type: "string", minLength: 1 }, cwd: { type: "string", minLength: 1 }, model: { type: "string" }, sandbox: { type: "string" }, approvalPolicy: { type: "string" }, timeoutSeconds: { type: "number", minimum: 1 }, maxOutputChars: { type: "number", minimum: 1024 }, dryRun: { type: "boolean", default: true }, configOverrides: { type: "object", additionalProperties: { anyOf: [{ type: "string" }, { type: "number" }, { type: "boolean" }] } } };
+const commonProperties = { ...baseToolProperties, model: { type: "string" }, sandbox: { type: "string" }, approvalPolicy: { type: "string" }, configOverrides: configOverridesProperty };
 const tools: Tool[] = [
   { name: "codex_status", description: "Check configured local codex CLI availability. Only runs codex --version.", inputSchema: { type: "object", properties: {}, additionalProperties: false } },
   { name: "codex_config", description: "Return sanitized loaded config, resolved allowlist, and detected Codex path/version.", inputSchema: { type: "object", properties: {}, additionalProperties: false } },
@@ -126,15 +107,14 @@ const tools: Tool[] = [
   { name: "codex_review", description: "Dry-run-first read/review Codex CLI wrapper. Real execution uses codex exec by default with read-only sandbox and guard text.", inputSchema: { type: "object", properties: commonProperties, required: ["prompt", "cwd"], additionalProperties: false } },
   { name: "codex_task", description: "Dry-run-first write-capable Codex CLI wrapper. Refuses real execution unless allowWrites is true.", inputSchema: { type: "object", properties: { ...commonProperties, allowWrites: { type: "boolean" }, allowDangerFullAccess: { type: "boolean" } }, required: ["prompt", "cwd"], additionalProperties: false } }
 ];
-async function codexVersion(): Promise<string | null> { const result = await runCommand(resolvedCodexBin, ["--version"], { timeoutSeconds: 15, maxOutputChars: 8192, redaction: config }); return result.exitCode === 0 ? (result.stdout.trim() || result.stderr.trim() || null) : null; }
-async function handleStatus(): Promise<ContentResponse> { const result = await runCommand(resolvedCodexBin, ["--version"], { timeoutSeconds: 15, maxOutputChars: 8192, redaction: config }); return jsonResponse({ server: { name: SERVER_NAME, version: SERVER_VERSION }, codex: { path: resolvedCodexBin, available: result.exitCode === 0, version: result.exitCode === 0 ? result.stdout.trim() || result.stderr.trim() || null : null, check: result }, allowedRoots: config.allowedRoots }); }
-async function handleConfig(): Promise<ContentResponse> { return jsonResponse({ server: { name: SERVER_NAME, version: SERVER_VERSION }, config: { ...config, codexBin: config.codexBin ?? "auto-discover" }, codex: { path: resolvedCodexBin, version: await codexVersion() } }); }
+async function handleStatus(): Promise<ContentResponse> { return jsonResponse({ server: { name: SERVER_NAME, version: SERVER_VERSION }, codex: await commandStatus(resolvedCodexBin, config), allowedRoots: config.allowedRoots }); }
+async function handleConfig(): Promise<ContentResponse> { return jsonResponse({ server: { name: SERVER_NAME, version: SERVER_VERSION }, config: { ...config, codexBin: config.codexBin ?? "auto-discover" }, codex: { path: resolvedCodexBin, version: await commandVersion(resolvedCodexBin, config) } }); }
 async function handleValidate(args: Record<string, unknown>): Promise<ContentResponse> { return jsonResponse({ valid: true, ...(await validateCodexInvocation({ prompt: optionalString(args.prompt, "prompt"), cwd: args.cwd, model: args.model, sandbox: args.sandbox, approvalPolicy: args.approvalPolicy, timeoutSeconds: args.timeoutSeconds, maxOutputChars: args.maxOutputChars, subcommand: args.subcommand, dryRun: args.dryRun, allowWrites: args.allowWrites, allowDangerFullAccess: args.allowDangerFullAccess, configOverrides: args.configOverrides, kind: args.allowWrites === true ? "task" : "review" })) }); }
 async function handleCodexReview(args: Record<string, unknown>): Promise<ContentResponse> { const prompt = requiredPrompt(args.prompt); const validation = await validateCodexInvocation({ prompt, cwd: args.cwd, model: args.model, sandbox: args.sandbox, approvalPolicy: args.approvalPolicy, timeoutSeconds: args.timeoutSeconds, maxOutputChars: args.maxOutputChars, subcommand: "exec", dryRun: args.dryRun, configOverrides: args.configOverrides, kind: "review" }); if (validation.dryRun) return jsonResponse(validation); const result = await runCommand(validation.command, validation.args, { cwd: validation.cwd, timeoutSeconds: validation.timeoutSeconds, maxOutputChars: validation.maxOutputChars, redaction: config }); return jsonResponse({ dryRun: false, result }); }
 async function handleCodexTask(args: Record<string, unknown>): Promise<ContentResponse> { const prompt = requiredPrompt(args.prompt); const validation = await validateCodexInvocation({ prompt, cwd: args.cwd, model: args.model, sandbox: args.sandbox, approvalPolicy: args.approvalPolicy, timeoutSeconds: args.timeoutSeconds, maxOutputChars: args.maxOutputChars, subcommand: "exec", dryRun: args.dryRun, allowWrites: args.allowWrites, allowDangerFullAccess: args.allowDangerFullAccess, configOverrides: args.configOverrides, kind: "task" }); if (!validation.dryRun && !validation.allowWrites) return jsonResponse({ error: "codex_task refuses real execution unless allowWrites is true" }, true); if (validation.dryRun) return jsonResponse(validation); const result = await runCommand(validation.command, validation.args, { cwd: validation.cwd, timeoutSeconds: validation.timeoutSeconds, maxOutputChars: validation.maxOutputChars, redaction: config }); return jsonResponse({ dryRun: false, allowWrites: validation.allowWrites, result }); }
 async function main(): Promise<void> {
   config = await loadConfig();
-  resolvedCodexBin = await discoverCodexBin(config.codexBin);
+  resolvedCodexBin = await discoverBinary("codex", "CODEX_BIN", config.codexBin);
   const server = new Server({ name: SERVER_NAME, version: SERVER_VERSION }, { capabilities: { tools: {} } });
   server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools }));
   server.setRequestHandler(CallToolRequestSchema, async (request) => {

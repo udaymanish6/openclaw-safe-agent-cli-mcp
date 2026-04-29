@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -7,7 +6,7 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema, type Tool } from "@modelcontextprotocol/sdk/types.js";
 import packageJson from "../package.json" with { type: "json" };
-import { booleanDefault, jsonResponse, normalizeMaxOutput, normalizedTimeout, numberProp, objectOrEmpty, optionalString, pathExists, redactSecrets, requiredPrompt, resolveAllowedCwd, runCommand, stringArray, type ContentResponse } from "@safe-agent-cli-mcp/shared";
+import { baseToolProperties, booleanDefault, commandStatus, commandVersion, commonConfigFromRaw, discoverBinary, jsonResponse, loadJsonConfig, normalizeMaxOutput, normalizedTimeout, objectOrEmpty, optionalNonEmptyStringProp, optionalString, optionalStringProp, redactSecrets, requiredPrompt, resolveAllowedCwd, runCommand, stringArray, stringProp, type ContentResponse } from "@safe-agent-cli-mcp/shared";
 
 const SERVER_NAME = "claude-cli-mcp-server";
 const SERVER_VERSION = packageJson.version;
@@ -33,38 +32,19 @@ type ValidationOptions = { prompt?: string; cwd: unknown; timeoutSeconds: unknow
 let config: ServerConfig = SAFE_DEFAULTS;
 let resolvedClaudeBin = "claude";
 
-async function discoverClaudeBin(configured?: string): Promise<string> {
-  const candidates = [configured, process.env.CLAUDE_BIN, ...String(process.env.PATH ?? "").split(path.delimiter).map((dir) => path.join(dir, "claude"))].filter((item): item is string => Boolean(item));
-  for (const candidate of candidates) if (await pathExists(candidate)) return candidate;
-  return "claude";
-}
-
 async function loadConfig(): Promise<ServerConfig> {
-  const candidates = [path.join(PROJECT_ROOT, "claude-mcp.config.json"), path.join(PROJECT_ROOT, "config", "default.json")];
-  let raw: Record<string, unknown> = {};
-  for (const file of candidates) if (await pathExists(file)) { raw = JSON.parse(await readFile(file, "utf8")) as Record<string, unknown>; break; }
-  const timeouts = objectOrEmpty(raw.timeouts);
-  const output = objectOrEmpty(raw.output);
+  const raw = await loadJsonConfig(PROJECT_ROOT, ["claude-mcp.config.json", "config/default.json"]);
   const loaded: ServerConfig = {
-    allowedRoots: stringArray(raw.allowedRoots, SAFE_DEFAULTS.allowedRoots),
-    timeouts: { reviewDefaultSeconds: numberProp(timeouts, "reviewDefaultSeconds", SAFE_DEFAULTS.timeouts.reviewDefaultSeconds), taskDefaultSeconds: numberProp(timeouts, "taskDefaultSeconds", SAFE_DEFAULTS.timeouts.taskDefaultSeconds), maxSeconds: numberProp(timeouts, "maxSeconds", SAFE_DEFAULTS.timeouts.maxSeconds) },
-    output: { defaultMaxChars: numberProp(output, "defaultMaxChars", SAFE_DEFAULTS.output.defaultMaxChars), maxChars: numberProp(output, "maxChars", SAFE_DEFAULTS.output.maxChars) },
-    defaultModel: typeof raw.defaultModel === "string" ? raw.defaultModel : SAFE_DEFAULTS.defaultModel,
-    defaultFallbackModel: typeof raw.defaultFallbackModel === "string" ? raw.defaultFallbackModel : SAFE_DEFAULTS.defaultFallbackModel,
+    ...commonConfigFromRaw(raw, SAFE_DEFAULTS),
+    defaultModel: stringProp(raw, "defaultModel", SAFE_DEFAULTS.defaultModel),
+    defaultFallbackModel: optionalStringProp(raw, "defaultFallbackModel", SAFE_DEFAULTS.defaultFallbackModel),
     allowedModels: stringArray(raw.allowedModels, SAFE_DEFAULTS.allowedModels),
     allowedEfforts: stringArray(raw.allowedEfforts, SAFE_DEFAULTS.allowedEfforts),
-    claudeBin: typeof raw.claudeBin === "string" && raw.claudeBin.trim() ? raw.claudeBin : undefined,
-    reviewPermissionMode: typeof raw.reviewPermissionMode === "string" ? raw.reviewPermissionMode : SAFE_DEFAULTS.reviewPermissionMode,
-    taskPermissionMode: typeof raw.taskPermissionMode === "string" ? raw.taskPermissionMode : SAFE_DEFAULTS.taskPermissionMode,
-    redactEmails: typeof raw.redactEmails === "boolean" ? raw.redactEmails : SAFE_DEFAULTS.redactEmails,
-    redactTokens: typeof raw.redactTokens === "boolean" ? raw.redactTokens : SAFE_DEFAULTS.redactTokens,
+    claudeBin: optionalNonEmptyStringProp(raw, "claudeBin"),
+    reviewPermissionMode: stringProp(raw, "reviewPermissionMode", SAFE_DEFAULTS.reviewPermissionMode),
+    taskPermissionMode: stringProp(raw, "taskPermissionMode", SAFE_DEFAULTS.taskPermissionMode),
     envPassthroughAllowlist: stringArray(raw.envPassthroughAllowlist, SAFE_DEFAULTS.envPassthroughAllowlist),
   };
-  loaded.timeouts.maxSeconds = Math.max(1, loaded.timeouts.maxSeconds);
-  loaded.timeouts.reviewDefaultSeconds = Math.min(loaded.timeouts.reviewDefaultSeconds, loaded.timeouts.maxSeconds);
-  loaded.timeouts.taskDefaultSeconds = Math.min(loaded.timeouts.taskDefaultSeconds, loaded.timeouts.maxSeconds);
-  loaded.output.maxChars = Math.max(1024, loaded.output.maxChars);
-  loaded.output.defaultMaxChars = Math.min(Math.max(1024, loaded.output.defaultMaxChars), loaded.output.maxChars);
   return loaded;
 }
 
@@ -123,7 +103,7 @@ export async function validateClaudeInvocation(options: ValidationOptions) {
   return { command, args, cwd, timeoutSeconds, maxOutputChars, dryRun, allowWrites, model, fallbackModel, effort, systemPrompt: Boolean(systemPrompt), appendSystemPrompt: Boolean(appendSystemPrompt), envKeys: Object.keys(objectOrEmpty(options.env)), allowlist: roots };
 }
 
-const commonProperties = { prompt: { type: "string", minLength: 1 }, cwd: { type: "string", minLength: 1 }, timeoutSeconds: { type: "number", minimum: 1 }, dryRun: { type: "boolean", default: true }, model: { type: "string" }, fallbackModel: { type: "string" }, effort: { type: "string" }, systemPrompt: { type: "string" }, appendSystemPrompt: { type: "string" }, maxOutputChars: { type: "number", minimum: 1024 }, env: { type: "object", additionalProperties: { type: "string" } } };
+const commonProperties = { ...baseToolProperties, model: { type: "string" }, fallbackModel: { type: "string" }, effort: { type: "string" }, systemPrompt: { type: "string" }, appendSystemPrompt: { type: "string" }, env: { type: "object", additionalProperties: { type: "string" } } };
 const tools: Tool[] = [
   { name: "claude_status", description: "Check whether the configured local claude CLI is available. Only runs claude --version.", inputSchema: { type: "object", properties: {}, additionalProperties: false } },
   { name: "claude_config", description: "Return sanitized loaded config, resolved allowlist, detected Claude path, and version.", inputSchema: { type: "object", properties: {}, additionalProperties: false } },
@@ -131,16 +111,15 @@ const tools: Tool[] = [
   { name: "claude_review", description: "Dry-run-first read/review Claude CLI wrapper. Real execution uses spawn, no shell, read-only guard text, and disallowed write/shell tools.", inputSchema: { type: "object", properties: commonProperties, required: ["prompt", "cwd"], additionalProperties: false } },
   { name: "claude_task", description: "Dry-run-first write-capable Claude CLI wrapper. Refuses real execution unless allowWrites is true.", inputSchema: { type: "object", properties: { ...commonProperties, allowWrites: { type: "boolean" } }, required: ["prompt", "cwd"], additionalProperties: false } }
 ];
-async function claudeVersion(): Promise<string | null> { const result = await runCommand(resolvedClaudeBin, ["--version"], { timeoutSeconds: 15, maxOutputChars: 8192, redaction: config }); return result.exitCode === 0 ? (result.stdout.trim() || result.stderr.trim() || null) : null; }
-async function handleStatus(): Promise<ContentResponse> { const result = await runCommand(resolvedClaudeBin, ["--version"], { timeoutSeconds: 15, maxOutputChars: 8192, redaction: config }); return jsonResponse({ server: { name: SERVER_NAME, version: SERVER_VERSION }, claude: { path: resolvedClaudeBin, available: result.exitCode === 0, version: result.exitCode === 0 ? result.stdout.trim() || result.stderr.trim() || null : null, check: result }, allowedRoots: config.allowedRoots }); }
-async function handleConfig(): Promise<ContentResponse> { return jsonResponse({ server: { name: SERVER_NAME, version: SERVER_VERSION }, config: { ...config, claudeBin: config.claudeBin ?? "auto-discover" }, claude: { path: resolvedClaudeBin, version: await claudeVersion() } }); }
+async function handleStatus(): Promise<ContentResponse> { return jsonResponse({ server: { name: SERVER_NAME, version: SERVER_VERSION }, claude: await commandStatus(resolvedClaudeBin, config), allowedRoots: config.allowedRoots }); }
+async function handleConfig(): Promise<ContentResponse> { return jsonResponse({ server: { name: SERVER_NAME, version: SERVER_VERSION }, config: { ...config, claudeBin: config.claudeBin ?? "auto-discover" }, claude: { path: resolvedClaudeBin, version: await commandVersion(resolvedClaudeBin, config) } }); }
 async function handleValidate(args: Record<string, unknown>): Promise<ContentResponse> { const kind = args.kind === "task" ? "task" : "review"; return jsonResponse({ valid: true, ...(await validateClaudeInvocation({ prompt: optionalString(args.prompt, "prompt"), cwd: args.cwd, timeoutSeconds: args.timeoutSeconds, dryRun: args.dryRun, model: args.model, fallbackModel: args.fallbackModel, effort: args.effort, systemPrompt: args.systemPrompt, appendSystemPrompt: args.appendSystemPrompt, maxOutputChars: args.maxOutputChars, env: args.env, allowWrites: args.allowWrites, kind })) }); }
 async function handleClaudeReview(args: Record<string, unknown>): Promise<ContentResponse> { const prompt = requiredPrompt(args.prompt); const validation = await validateClaudeInvocation({ prompt, cwd: args.cwd, timeoutSeconds: args.timeoutSeconds, dryRun: args.dryRun, model: args.model, fallbackModel: args.fallbackModel, effort: args.effort, systemPrompt: args.systemPrompt, appendSystemPrompt: args.appendSystemPrompt, maxOutputChars: args.maxOutputChars, env: args.env, kind: "review" }); if (validation.dryRun) return jsonResponse(validation); const result = await runCommand(validation.command, validation.args, { cwd: validation.cwd, timeoutSeconds: validation.timeoutSeconds, maxOutputChars: validation.maxOutputChars, env: buildEnv(args.env), redaction: config }); return jsonResponse({ dryRun: false, result }); }
 async function handleClaudeTask(args: Record<string, unknown>): Promise<ContentResponse> { const prompt = requiredPrompt(args.prompt); const validation = await validateClaudeInvocation({ prompt, cwd: args.cwd, timeoutSeconds: args.timeoutSeconds, dryRun: args.dryRun, model: args.model, fallbackModel: args.fallbackModel, effort: args.effort, systemPrompt: args.systemPrompt, appendSystemPrompt: args.appendSystemPrompt, maxOutputChars: args.maxOutputChars, env: args.env, allowWrites: args.allowWrites, kind: "task" }); if (!validation.dryRun && !validation.allowWrites) return jsonResponse({ error: "claude_task refuses real execution unless allowWrites is true" }, true); if (validation.dryRun) return jsonResponse(validation); const result = await runCommand(validation.command, validation.args, { cwd: validation.cwd, timeoutSeconds: validation.timeoutSeconds, maxOutputChars: validation.maxOutputChars, env: buildEnv(args.env), redaction: config }); return jsonResponse({ dryRun: false, allowWrites: validation.allowWrites, result }); }
 
 async function main(): Promise<void> {
   config = await loadConfig();
-  resolvedClaudeBin = await discoverClaudeBin(config.claudeBin);
+  resolvedClaudeBin = await discoverBinary("claude", "CLAUDE_BIN", config.claudeBin);
   const server = new Server({ name: SERVER_NAME, version: SERVER_VERSION }, { capabilities: { tools: {} } });
   server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools }));
   server.setRequestHandler(CallToolRequestSchema, async (request) => {

@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { access, realpath } from "node:fs/promises";
+import { access, readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 
@@ -18,6 +18,16 @@ export type SpawnResult = {
   stderrTruncated: boolean;
 };
 export type RedactionConfig = { redactEmails?: boolean; redactTokens?: boolean };
+export type CommonServerConfig = {
+  allowedRoots: string[];
+  timeouts: { reviewDefaultSeconds: number; taskDefaultSeconds: number; maxSeconds: number };
+  output: { defaultMaxChars: number; maxChars: number };
+  redactEmails: boolean;
+  redactTokens: boolean;
+};
+
+export const baseToolProperties = { prompt: { type: "string", minLength: 1 }, cwd: { type: "string", minLength: 1 }, timeoutSeconds: { type: "number", minimum: 1 }, maxOutputChars: { type: "number", minimum: 1024 }, dryRun: { type: "boolean", default: true } };
+export const configOverridesProperty = { type: "object", additionalProperties: { anyOf: [{ type: "string" }, { type: "number" }, { type: "boolean" }] } };
 
 export function objectOrEmpty(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
@@ -30,6 +40,45 @@ export function stringArray(value: unknown, fallback: string[]): string[] {
 export function numberProp(obj: Record<string, unknown>, key: string, fallback: number): number {
   const value = obj[key];
   return typeof value === "number" && Number.isFinite(value) && value > 0 ? Math.floor(value) : fallback;
+}
+
+export function stringProp(obj: Record<string, unknown>, key: string, fallback: string): string { return typeof obj[key] === "string" ? obj[key] : fallback; }
+export function optionalStringProp(obj: Record<string, unknown>, key: string, fallback?: string): string | undefined { return typeof obj[key] === "string" ? obj[key] : fallback; }
+export function optionalNonEmptyStringProp(obj: Record<string, unknown>, key: string): string | undefined { return typeof obj[key] === "string" && obj[key].trim() ? obj[key] : undefined; }
+
+export async function discoverBinary(binaryName: string, envVar: string, configured?: string): Promise<string> {
+  const candidates = [configured, process.env[envVar], ...String(process.env.PATH ?? "").split(path.delimiter).map((dir) => path.join(dir, binaryName))].filter((item): item is string => Boolean(item));
+  for (const candidate of candidates) if (await pathExists(candidate)) return candidate;
+  return binaryName;
+}
+
+export async function loadJsonConfig(projectRoot: string, relativeFiles: string[]): Promise<Record<string, unknown>> {
+  for (const relativeFile of relativeFiles) {
+    const file = path.join(projectRoot, relativeFile);
+    if (await pathExists(file)) return JSON.parse(await readFile(file, "utf8")) as Record<string, unknown>;
+  }
+  return {};
+}
+
+export function commonConfigFromRaw(raw: Record<string, unknown>, defaults: CommonServerConfig): CommonServerConfig {
+  const timeouts = objectOrEmpty(raw.timeouts);
+  const output = objectOrEmpty(raw.output);
+  return normalizeCommonConfig({
+    allowedRoots: stringArray(raw.allowedRoots, defaults.allowedRoots),
+    timeouts: { reviewDefaultSeconds: numberProp(timeouts, "reviewDefaultSeconds", defaults.timeouts.reviewDefaultSeconds), taskDefaultSeconds: numberProp(timeouts, "taskDefaultSeconds", defaults.timeouts.taskDefaultSeconds), maxSeconds: numberProp(timeouts, "maxSeconds", defaults.timeouts.maxSeconds) },
+    output: { defaultMaxChars: numberProp(output, "defaultMaxChars", defaults.output.defaultMaxChars), maxChars: numberProp(output, "maxChars", defaults.output.maxChars) },
+    redactEmails: typeof raw.redactEmails === "boolean" ? raw.redactEmails : defaults.redactEmails,
+    redactTokens: typeof raw.redactTokens === "boolean" ? raw.redactTokens : defaults.redactTokens,
+  });
+}
+
+export function normalizeCommonConfig<T extends CommonServerConfig>(loaded: T): T {
+  loaded.timeouts.maxSeconds = Math.max(1, loaded.timeouts.maxSeconds);
+  loaded.timeouts.reviewDefaultSeconds = Math.min(loaded.timeouts.reviewDefaultSeconds, loaded.timeouts.maxSeconds);
+  loaded.timeouts.taskDefaultSeconds = Math.min(loaded.timeouts.taskDefaultSeconds, loaded.timeouts.maxSeconds);
+  loaded.output.maxChars = Math.max(1024, loaded.output.maxChars);
+  loaded.output.defaultMaxChars = Math.min(Math.max(1024, loaded.output.defaultMaxChars), loaded.output.maxChars);
+  return loaded;
 }
 
 export async function pathExists(file: string): Promise<boolean> {
@@ -170,4 +219,17 @@ export async function runCommand(command: string, args: string[], options: { cwd
       resolve({ command, args, cwd: options.cwd, exitCode, signal, timedOut, stdout: outputFromChunks(stdoutChunks, redaction), stderr: outputFromChunks(stderrChunks, redaction), stdoutTruncated, stderrTruncated });
     });
   });
+}
+
+export function versionFromResult(result: SpawnResult): string | null {
+  return result.exitCode === 0 ? result.stdout.trim() || result.stderr.trim() || null : null;
+}
+
+export async function commandStatus(command: string, redaction: RedactionConfig): Promise<{ path: string; available: boolean; version: string | null; check: SpawnResult }> {
+  const result = await runCommand(command, ["--version"], { timeoutSeconds: 15, maxOutputChars: 8192, redaction });
+  return { path: command, available: result.exitCode === 0, version: versionFromResult(result), check: result };
+}
+
+export async function commandVersion(command: string, redaction: RedactionConfig): Promise<string | null> {
+  return versionFromResult(await runCommand(command, ["--version"], { timeoutSeconds: 15, maxOutputChars: 8192, redaction }));
 }
